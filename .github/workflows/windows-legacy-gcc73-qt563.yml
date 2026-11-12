@@ -46,7 +46,9 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile C:\legacy\qt563.tar.xz -MaximumRetryCount 3
           & 7z x C:\legacy\qt563.tar.xz -oC:\legacy -y | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Qt xz extraction failed' }
-          & 7z x C:\legacy\qt563.tar -oC:\legacy -y | Out-Null
+          # Extract only the modules required by MSHV. The full archive contains
+          # qtwebengine/Chromium symlinks that 7-Zip rejects on Windows.
+          & 7z x C:\legacy\qt563.tar -oC:\legacy -y 'qt-everywhere-opensource-src-5.6.3/qtbase/*' 'qt-everywhere-opensource-src-5.6.3/qtwebsockets/*' | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Qt tar extraction failed' }
           if (-not (Test-Path C:\legacy\qt-everywhere-opensource-src-5.6.3\qtbase\configure.bat)) { throw 'Qt source tree missing' }
 
