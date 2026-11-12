@@ -58,7 +58,7 @@ jobs:
           set /p GCCBIN=<C:\legacy\gcc-bin.txt
           set "PATH=%GCCBIN%;%PATH%"
           cd /d C:\legacy\qt-everywhere-opensource-src-5.6.3\qtbase
-          call configure.bat -opensource -confirm-license -release -platform win32-g++ -prefix C:\legacy\qt563 -nomake examples -nomake tests -no-opengl -no-icu -no-dbus -no-angle -no-openssl -no-sql-sqlite -no-sql-odbc
+          call configure.bat -opensource -confirm-license -release -platform win32-g++ -prefix C:\legacy\qt563 -nomake examples -nomake tests -no-opengl -no-icu -no-dbus -no-angle -openssl-runtime -no-sql-sqlite -no-sql-odbc
           if errorlevel 1 exit /b 1
           mingw32-make -j2
           if errorlevel 1 exit /b 1
