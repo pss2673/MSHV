@@ -48,7 +48,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Qt xz extraction failed' }
           # Extract only the modules required by MSHV. The full archive contains
           # qtwebengine/Chromium symlinks that 7-Zip rejects on Windows.
-          & 7z x C:\legacy\qt563.tar -oC:\legacy -y 'qt-everywhere-opensource-src-5.6.3/qtbase/*' 'qt-everywhere-opensource-src-5.6.3/qtwebsockets/*' | Out-Null
+          & 7z x C:\legacy\qt563.tar -oC:\legacy -y 'qt-everywhere-opensource-src-5.6.3/qtbase/*' 'qt-everywhere-opensource-src-5.6.3/qtwebsockets/*' 'qt-everywhere-opensource-src-5.6.3/qtactiveqt/*' | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Qt tar extraction failed' }
           if (-not (Test-Path C:\legacy\qt-everywhere-opensource-src-5.6.3\qtbase\configure.bat)) { throw 'Qt source tree missing' }
 
@@ -71,6 +71,19 @@ jobs:
           set /p GCCBIN=<C:\legacy\gcc-bin.txt
           set "PATH=%GCCBIN%;C:\legacy\qt563\bin;%PATH%"
           cd /d C:\legacy\qt-everywhere-opensource-src-5.6.3\qtwebsockets
+          C:\legacy\qt563\bin\qmake.exe CONFIG+=release
+          if errorlevel 1 exit /b 1
+          mingw32-make -j2
+          if errorlevel 1 exit /b 1
+          mingw32-make install
+          if errorlevel 1 exit /b 1
+
+      - name: Build Qt 5.6.3 ActiveQt AxContainer module
+        shell: cmd
+        run: |
+          set /p GCCBIN=<C:\legacy\gcc-bin.txt
+          set "PATH=%GCCBIN%;C:\legacy\qt563\bin;%PATH%"
+          cd /d C:\legacy\qt-everywhere-opensource-src-5.6.3\qtactiveqt
           C:\legacy\qt563\bin\qmake.exe CONFIG+=release
           if errorlevel 1 exit /b 1
           mingw32-make -j2
