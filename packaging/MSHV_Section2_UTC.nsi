@@ -2,7 +2,7 @@ Unicode True
 !include "MUI2.nsh"
 
 Name "MSHV Section 2 UTC Filter"
-OutFile "dist\MSHV-Section2-UTC-Win64-Setup.exe"
+OutFile "..\dist\MSHV-Section2-UTC-Win64-Setup.exe"
 InstallDir "$LOCALAPPDATA\Programs\MSHV-Section2-UTC"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
@@ -19,7 +19,7 @@ ShowUninstDetails show
 
 Section "MSHV" SecMain
     SetOutPath "$INSTDIR"
-    File /r "dist\MSHV\*"
+    File /r "..\dist\MSHV\*"
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     CreateDirectory "$SMPROGRAMS\MSHV Section 2 UTC"
     CreateShortcut "$SMPROGRAMS\MSHV Section 2 UTC\MSHV.lnk" "$INSTDIR\MSHV.exe"
