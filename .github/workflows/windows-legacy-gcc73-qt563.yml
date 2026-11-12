@@ -1,0 +1,122 @@
+name: MSHV legacy GCC 7.3 Qt 5.6.3 Windows x64
+
+on:
+  push:
+    branches:
+      - feature/section2-utc-windows
+    paths:
+      - '.github/workflows/windows-legacy-gcc73-qt563.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-legacy:
+    runs-on: windows-2022
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download exact GCC 7.3.0 POSIX SEH x64 toolchain
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force C:\legacy | Out-Null
+          $url = 'https://download.qt.io/development_releases/prebuilt/mingw_64/x86_64-7.3.0-release-posix-seh-rt_v5-rev0.7z'
+          Invoke-WebRequest -Uri $url -OutFile C:\legacy\gcc73.7z -MaximumRetryCount 3
+          & 7z x C:\legacy\gcc73.7z -oC:\legacy -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'GCC 7.3 extraction failed' }
+          $gcc = Get-ChildItem C:\legacy -Filter gcc.exe -Recurse | Where-Object { $_.FullName -match '\\bin\\gcc.exe$' } | Select-Object -First 1
+          if (-not $gcc) { throw 'gcc.exe not found' }
+          $bin = $gcc.Directory.FullName
+          Add-Content $env:GITHUB_PATH $bin
+          Set-Content C:\legacy\gcc-bin.txt $bin
+          & "$bin\gcc.exe" --version
+          & "$bin\g++.exe" -v 2>&1 | Select-String 'Thread model|gcc version'
+          if ((& "$bin\gcc.exe" -dumpfullversion) -ne '7.3.0') { throw 'Incorrect GCC version' }
+          if ((& "$bin\g++.exe" -v 2>&1 | Out-String) -notmatch 'Thread model: posix') { throw 'Incorrect GCC thread model' }
+
+      - name: Download Qt 5.6.3 source (official Qt archive)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = 'https://download.qt.io/new_archive/qt/5.6/5.6.3/single/qt-everywhere-opensource-src-5.6.3.tar.xz'
+          Invoke-WebRequest -Uri $url -OutFile C:\legacy\qt563.tar.xz -MaximumRetryCount 3
+          & 7z x C:\legacy\qt563.tar.xz -oC:\legacy -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Qt xz extraction failed' }
+          & 7z x C:\legacy\qt563.tar -oC:\legacy -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Qt tar extraction failed' }
+          if (-not (Test-Path C:\legacy\qt-everywhere-opensource-src-5.6.3\qtbase\configure.bat)) { throw 'Qt source tree missing' }
+
+      - name: Build Qt 5.6.3 qtbase with GCC 7.3.0
+        shell: cmd
+        run: |
+          set /p GCCBIN=<C:\legacy\gcc-bin.txt
+          set "PATH=%GCCBIN%;%PATH%"
+          cd /d C:\legacy\qt-everywhere-opensource-src-5.6.3\qtbase
+          call configure.bat -opensource -confirm-license -release -platform win32-g++ -prefix C:\legacy\qt563 -nomake examples -nomake tests -no-opengl -no-icu -no-dbus -no-angle -no-openssl -no-sql-sqlite -no-sql-odbc
+          if errorlevel 1 exit /b 1
+          mingw32-make -j2
+          if errorlevel 1 exit /b 1
+          mingw32-make install
+          if errorlevel 1 exit /b 1
+
+      - name: Build Qt 5.6.3 WebSockets module
+        shell: cmd
+        run: |
+          set /p GCCBIN=<C:\legacy\gcc-bin.txt
+          set "PATH=%GCCBIN%;C:\legacy\qt563\bin;%PATH%"
+          cd /d C:\legacy\qt-everywhere-opensource-src-5.6.3\qtwebsockets
+          C:\legacy\qt563\bin\qmake.exe CONFIG+=release
+          if errorlevel 1 exit /b 1
+          mingw32-make -j2
+          if errorlevel 1 exit /b 1
+          mingw32-make install
+          if errorlevel 1 exit /b 1
+
+      - name: Verify Qt 5.6.3 and compile MSHV x64
+        shell: cmd
+        run: |
+          set /p GCCBIN=<C:\legacy\gcc-bin.txt
+          set "PATH=%GCCBIN%;C:\legacy\qt563\bin;%PATH%"
+          C:\legacy\qt563\bin\qmake.exe -query QT_VERSION
+          if errorlevel 1 exit /b 1
+          qmake.exe MSHV_WIN64.pro CONFIG+=release
+          if errorlevel 1 exit /b 1
+          mingw32-make -j2
+          if errorlevel 1 exit /b 1
+
+      - name: Package legacy Windows x64 binary
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $gccbin = Get-Content C:\legacy\gcc-bin.txt
+          New-Item -ItemType Directory -Force dist\MSHV | Out-Null
+          Copy-Item bin\* dist\MSHV -Recurse -Force
+          $exe = Get-ChildItem dist\MSHV -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { throw 'MSHV executable missing' }
+          if ($exe.Name -ne 'MSHV.exe') { Rename-Item $exe.FullName MSHV.exe }
+          Copy-Item COPYING.txt dist\MSHV\COPYING.txt
+          Get-ChildItem C:\legacy\qt563\bin -Filter 'Qt5*.dll' | Copy-Item -Destination dist\MSHV
+          New-Item -ItemType Directory -Force dist\MSHV\platforms | Out-Null
+          Copy-Item C:\legacy\qt563\plugins\platforms\qwindows.dll dist\MSHV\platforms\
+          foreach ($dll in @('libgcc_s_seh-1.dll','libstdc++-6.dll','libwinpthread-1.dll')) {
+            Copy-Item (Join-Path $gccbin $dll) dist\MSHV\
+          }
+          Compress-Archive -Path dist\MSHV\* -DestinationPath dist\MSHV-Section2-UTC-GCC73-Qt563-Win64.zip -Force
+          choco install nsis -y --no-progress
+          $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          & $makensis '/DLEGACY_BUILD=1' 'packaging/MSHV_Section2_UTC.nsi'
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS failed' }
+          Rename-Item dist\MSHV-Section2-UTC-Win64-Setup.exe MSHV-Section2-UTC-GCC73-Qt563-Win64-Setup.exe
+
+      - name: Upload exact legacy build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MSHV-legacy-GCC73-Qt563-Win64
+          path: |
+            dist/MSHV-Section2-UTC-GCC73-Qt563-Win64.zip
+            dist/MSHV-Section2-UTC-GCC73-Qt563-Win64-Setup.exe
+          if-no-files-found: warn
