@@ -34,7 +34,7 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          qmake MSHV_WIN64.pro CONFIG+=release
+          qmake-qt5 MSHV_WIN64.pro CONFIG+=release
           mingw32-make -j2
           ls -lh bin/*.exe
 
@@ -48,7 +48,10 @@ jobs:
           test -n "$exe"
           if [ "$exe" != "dist/MSHV/MSHV.exe" ]; then mv "$exe" dist/MSHV/MSHV.exe; fi
           cp COPYING.txt dist/MSHV/COPYING.txt
-          windeployqt --release --no-translations --compiler-runtime dist/MSHV/MSHV.exe
+          # MSYS2 names its Qt 5 executables qmake-qt5 / windeployqt-qt5.
+          # windeployqt may probe 'qmake' internally, so provide the compatibility alias.
+          cp /mingw64/bin/qmake-qt5.exe /mingw64/bin/qmake.exe
+          windeployqt-qt5 --release --no-translations --compiler-runtime dist/MSHV/MSHV.exe
           for dll in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
             if [ -f "/mingw64/bin/$dll" ]; then cp -n "/mingw64/bin/$dll" dist/MSHV/; fi
           done
