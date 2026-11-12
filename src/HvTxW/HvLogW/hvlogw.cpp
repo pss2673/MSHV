@@ -1083,6 +1083,7 @@ HvLogW::HvLogW(QString inst,QString app_path, bool indsty,int x,int y,QWidget *w
     fsave_busy = false;
     //c_sec_broad_logged = 0;
     //last_broad_logged_dt = "yyyyMMdd hh:mm";
+    section2RangeEnabled = false;
     f_isCheck[0] = true;
     f_isCheck[1] = true;
     f_isCheck[2] = true;
@@ -2580,6 +2581,30 @@ void HvLogW::DefaultSort()
     End_Edit();
     End_Add_Man_Qso();
 }
+void HvLogW::SetSection2TimeRange(bool enabled,QDateTime startUtc,QDateTime endUtc)
+{
+    section2RangeEnabled = enabled && startUtc.isValid() && endUtc.isValid()
+            && startUtc <= endUtc;
+    section2StartUtc = startUtc.toUTC();
+    section2EndUtc = endUtc.toUTC();
+    if (s_allowed_modes && (f_isCheck[0] || f_isCheck[3]))
+        GetMarkTextAllFromLog_p(s_band, s_mode);
+}
+
+bool HvLogW::QsoInSection2Range(int row) const
+{
+    if (!section2RangeEnabled) return true;
+    // MSHV log model: column 0 is yyyyMMdd, column 1 is hh:mm, both UTC.
+    const QStandardItem *dateItem = THvLogList->model.item(row, 0);
+    const QStandardItem *timeItem = THvLogList->model.item(row, 1);
+    if (!dateItem || !timeItem) return false;
+    QDateTime started = QDateTime::fromString(dateItem->text() + timeItem->text(),
+                                            "yyyyMMddhh:mm");
+    if (!started.isValid()) return false;
+    started.setTimeSpec(Qt::UTC);
+    return started >= section2StartUtc && started <= section2EndUtc;
+}
+
 void HvLogW::SetMarkTextAllRuleChanged(bool *f,int mode,QString band)
 {
     f_isCheck[0] = f[19];//qso b4
@@ -2630,6 +2655,7 @@ void HvLogW::GetMarkTextAllFromLog_p(QString band,QString mode)
     {
         for (int i = 0; i<l_count; ++i)
         {
+            if (!QsoInSection2Range(i)) continue;
             if (f_isCheck[2])
             {
                 if (THvLogList->model.item(i,8)->text()!=mode) continue;
@@ -2649,6 +2675,7 @@ void HvLogW::GetMarkTextAllFromLog_p(QString band,QString mode)
     {
         for (int i = 0; i<l_count; ++i)
         {
+            if (!QsoInSection2Range(i)) continue;
             if (f_isCheck[6])
             {
                 if (THvLogList->model.item(i,8)->text()!=mode) continue;
@@ -2684,12 +2711,14 @@ void HvLogW::GetMarkTextAllFromLog_p(QString band,QString mode)
     } //l.removeDuplicates();
     emit EmitMarkTextLogAll(l,p1); //qDebug()<<l<<l.count();
 }
+// The Section 2 QSO-B4 warning uses the same history range as text highlighting.
 void HvLogW::IsCallDupeInLog(QString call,QString mod,QString band,int maxqso,bool &is_exist)
 {
     is_exist=false;
     int l_count = THvLogList->GetListCount();
     for (int i = 0; i<l_count; ++i)
     {
+        if (!QsoInSection2Range(i)) continue;
         if (THvLogList->model.item(i,4)->text()!=call) continue;
         if (f_isCheck[2]) // mod
         {

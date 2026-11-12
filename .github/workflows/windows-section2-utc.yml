@@ -1,0 +1,78 @@
+name: MSHV Windows 11 x64 installer
+
+on:
+  push:
+    branches:
+      - feature/section2-utc-windows
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install MinGW-w64 and Qt 5 via MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-qt5-base
+            mingw-w64-x86_64-qt5-websockets
+            mingw-w64-x86_64-qt5-activeqt
+            mingw-w64-x86_64-qt5-tools
+
+      - name: Build MSHV x64 (qmake / MinGW)
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          qmake MSHV_WIN64.pro CONFIG+=release
+          mingw32-make -j2
+          ls -lh bin/*.exe
+
+      - name: Stage files, Qt runtime, and program data
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/MSHV
+          cp -R bin/. dist/MSHV/
+          exe="$(find dist/MSHV -maxdepth 1 -iname '*.exe' | head -n 1)"
+          test -n "$exe"
+          if [ "$exe" != "dist/MSHV/MSHV.exe" ]; then mv "$exe" dist/MSHV/MSHV.exe; fi
+          cp COPYING.txt dist/MSHV/COPYING.txt
+          windeployqt --release --no-translations --compiler-runtime dist/MSHV/MSHV.exe
+          for dll in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
+            if [ -f "/mingw64/bin/$dll" ]; then cp -n "/mingw64/bin/$dll" dist/MSHV/; fi
+          done
+          test -f dist/MSHV/MSHV.exe
+          test -d dist/MSHV/settings
+          test -d dist/MSHV/log
+
+      - name: Create portable ZIP and NSIS setup EXE
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'dist/MSHV/*' -DestinationPath 'dist/MSHV-Section2-UTC-Win64.zip' -Force
+          choco install nsis -y --no-progress
+          $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          if (-not (Test-Path $makensis)) { throw "NSIS makensis.exe not found" }
+          & $makensis 'packaging/MSHV_Section2_UTC.nsi'
+          if ($LASTEXITCODE -ne 0) { throw "NSIS packaging failed" }
+          if (-not (Test-Path 'dist/MSHV-Section2-UTC-Win64-Setup.exe')) { throw "Setup EXE not generated" }
+
+      - name: Upload Windows 11 installation files
+        uses: actions/upload-artifact@v4
+        with:
+          name: MSHV-Section2-UTC-Windows-x64
+          path: |
+            dist/MSHV-Section2-UTC-Win64-Setup.exe
+            dist/MSHV-Section2-UTC-Win64.zip
+          if-no-files-found: error
+          retention-days: 30

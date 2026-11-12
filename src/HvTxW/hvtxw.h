@@ -5,6 +5,7 @@
 #ifndef HVTXW_H
 #define HVTXW_H
 
+#include <QDateTime>
 #include <QWidget>
 
 #include <QLabel>
@@ -325,6 +326,7 @@ public slots:
     void bt_gen_msg();//for SWL
     void auto_on();
     void ResetQSO();
+    void SetSection2TimeRange(bool enabled,QDateTime startUtc,QDateTime endUtc);
     void SetTextMark(bool*,QString);
     void SetRxOnlyFiSe();
 

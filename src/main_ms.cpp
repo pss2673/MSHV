@@ -755,6 +755,8 @@ Main_Ms::Main_Ms(QString inst0,QWidget * parent)
     connect(TDecoderMs, SIGNAL(EmitDecodeInProgresPskRep(bool)), THvTxW, SLOT(SetDecodeInProgresPskRep(bool)));
 
     connect(THvTxW, SIGNAL(StndInLevel(int)), TMsCore, SLOT(SetInLevel(int)));
+    connect(THvTxtColor, SIGNAL(EmitSection2TimeRange(bool,QDateTime,QDateTime)),
+            THvTxW, SLOT(SetSection2TimeRange(bool,QDateTime,QDateTime)));
     connect(THvTxtColor, SIGNAL(EmitTextMark(bool*,QString)), THvTxW, SLOT(SetTextMark(bool*,QString)));
     connect(THvTxtColor, SIGNAL(EmitTextMarkColors(QColor*,int,bool,bool,bool)), TDecodeList1, SLOT(SetTextMarkColors(QColor*,int,bool,bool,bool)));
     connect(THvTxtColor, SIGNAL(EmitTextMarkColors(QColor*,int,bool,bool,bool)), TDecodeList2, SLOT(SetTextMarkColors(QColor*,int,bool,bool,bool)));
@@ -4086,7 +4088,7 @@ void Main_Ms::SetQActionCb(QString s, bool idp, QAction *ac)//idp priority of pr
 }
 void Main_Ms::Read_Settings(QString path)
 {
-    const int c_st_id = 110;//dopalva se tuk v kraia
+    const int c_st_id = 111;//dopalva se tuk v kraia
     const QString st_id[c_st_id]=
         {
             "default_w","default_h","default_device_alsa","default_bitpersample","default_card_latency",
@@ -4112,7 +4114,7 @@ void Main_Ms::Read_Settings(QString path)
             "def_filter_list4","def_filter_list5","def_adle_vdsp","def_areset_qso","def_1_dec_sig_q65",
             "def_auto_clr_avg_afdec","def_dec_aft_eme_delay","def_max_drift","def_use_queue_cont","def_filter_list6",
             "use_aseq_max_dist","def_mod_bt_sw","def_show_lcols","vd_bw_lines_draw","def_band_bt_sw",
-            "def_show_hide_wf_tx","def_var_dec_parr"
+            "def_show_hide_wf_tx","def_var_dec_parr","section2_time_range"
         };
 
     QString st_res[c_st_id];
@@ -4291,6 +4293,7 @@ void Main_Ms::Read_Settings(QString path)
 
     if (!st_res[31].isEmpty()) THvTxW->SetPiriodTimeAllModes(st_res[31]);
 
+    if (!st_res[110].isEmpty()) THvTxtColor->SetSection2TimeRange(st_res[110]);
     if (!st_res[32].isEmpty()) THvTxtColor->SetTextMark(st_res[32]);
     if (!st_res[72].isEmpty()) THvTxtColor->SetTextColor(st_res[72]);
 
@@ -4633,6 +4636,7 @@ void Main_Ms::Save_Settings(QString path)
     out << "default_in_lev_cor=" << THvTxW->default_in_lev_cor() << "\n";
     out << "default_out_lev_cor=" << THvTxW->default_out_lev_cor() << "\n";
     out << "default_period_time_all=" << THvTxW->def_period_time_all_modes() << "\n";
+    out << "section2_time_range=" << THvTxtColor->GetSection2TimeRange() << "\n";
     out << "default_txt_mark=" << THvTxtColor->GetTextMark() << "\n";
     ///out << "default_mon_r=" << THvTxW->get_mon_r12 << "\n";
 

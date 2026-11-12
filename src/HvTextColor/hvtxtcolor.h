@@ -6,6 +6,8 @@
 #define HVTXTCOLOR_H
 
 #include <QDialog>
+#include <QDateTime>
+#include <QDateTimeEdit>
 #include <QCheckBox>
 #include <QVBoxLayout>
 #include <QPushButton>
@@ -28,6 +30,8 @@ public:
     HvTxtColor(bool,QWidget *parent = 0);
     virtual ~HvTxtColor();
     QString GetTextMark();
+    QString GetSection2TimeRange() const;
+    void SetSection2TimeRange(const QString &settings);
     void SetTextMark(QString);
     void SetTextColor(QString);
     QString GetTextColor()
@@ -51,10 +55,12 @@ public:
     void SetFont(QFont f);
 
 signals:
+    void EmitSection2TimeRange(bool enabled,QDateTime startUtc,QDateTime endUtc);
     void EmitTextMark(bool *f,QString);
     void EmitTextMarkColors(QColor*,int,bool,bool,bool);
 
 private slots:
+    void Section2TimeRangeChanged();
     void TextMarkChanged(bool);
     void TxTextMarkChanged(bool);
     void OpenCDBox1();
@@ -70,6 +76,9 @@ private slots:
 
 private:
     int dsty;
+    QCheckBox *section2RangeEnabled;
+    QDateTimeEdit *section2StartUtc;
+    QDateTimeEdit *section2EndUtc;
     QCheckBox *cb[C_CB];
     HvLeWithSpace *le_cals_msg;    
     QColor collors[C_SHEM][C_COLORS];

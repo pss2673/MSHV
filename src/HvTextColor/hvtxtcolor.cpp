@@ -2,6 +2,8 @@
  * Copyright 2015 Hrisimir Hristov, LZ2HV
  * May be used under the terms of the GNU General Public License (GPL)
  */
+#include <QGridLayout>
+#include <QLabel>
 #include "hvtxtcolor.h"
 //#include <QtGui>
 
@@ -200,6 +202,30 @@ HvTxtColor::HvTxtColor(bool f,QWidget *parent )
 
     QVBoxLayout *V_l2 = new QVBoxLayout();
     V_l2->setContentsMargins (1, 1, 1, 1);
+    // All log-history-driven Section 2 checks share this optional UTC range.
+    section2RangeEnabled = new QCheckBox(tr("Limit Section 2 QSO history to a UTC date/time range"));
+    section2StartUtc = new QDateTimeEdit(QDateTime::currentDateTimeUtc().addDays(-1));
+    section2EndUtc = new QDateTimeEdit(QDateTime::currentDateTimeUtc());
+    section2StartUtc->setDisplayFormat("yyyy-MM-dd HH:mm");
+    section2EndUtc->setDisplayFormat("yyyy-MM-dd HH:mm");
+    section2StartUtc->setCalendarPopup(true);
+    section2EndUtc->setCalendarPopup(true);
+    section2StartUtc->setEnabled(false);
+    section2EndUtc->setEnabled(false);
+    section2StartUtc->setToolTip(tr("Enter the UTC start date and time (inclusive)."));
+    section2EndUtc->setToolTip(tr("Enter the UTC end date and time (inclusive)."));
+    QGridLayout *utcRangeLayout = new QGridLayout();
+    utcRangeLayout->addWidget(new QLabel(tr("Start (UTC):")), 0, 0);
+    utcRangeLayout->addWidget(section2StartUtc, 0, 1);
+    utcRangeLayout->addWidget(new QLabel(tr("End (UTC):")), 1, 0);
+    utcRangeLayout->addWidget(section2EndUtc, 1, 1);
+    V_l2->addWidget(section2RangeEnabled);
+    V_l2->addLayout(utcRangeLayout);
+    connect(section2RangeEnabled, SIGNAL(toggled(bool)), section2StartUtc, SLOT(setEnabled(bool)));
+    connect(section2RangeEnabled, SIGNAL(toggled(bool)), section2EndUtc, SLOT(setEnabled(bool)));
+    connect(section2RangeEnabled, SIGNAL(toggled(bool)), this, SLOT(Section2TimeRangeChanged()));
+    connect(section2StartUtc, SIGNAL(dateTimeChanged(QDateTime)), this, SLOT(Section2TimeRangeChanged()));
+    connect(section2EndUtc, SIGNAL(dateTimeChanged(QDateTime)), this, SLOT(Section2TimeRangeChanged()));
     V_l2->setSpacing(3);
     V_l2->addLayout(H_h2);
     V_l2->addLayout(H_h3);
@@ -436,6 +462,51 @@ void HvTxtColor::SetTextMark(QString s)
    	}
   	TextMarkChanged(true);//refresh
 }
+// The UI fields are interpreted as UTC wall-clock values regardless of the PC timezone.
+QString HvTxtColor::GetSection2TimeRange() const
+{
+    const QDateTime start(section2StartUtc->date(), section2StartUtc->time(), Qt::UTC);
+    const QDateTime end(section2EndUtc->date(), section2EndUtc->time(), Qt::UTC);
+    return QString("%1#%2#%3")
+            .arg(section2RangeEnabled->isChecked() ? "1" : "0")
+            .arg(start.toString("yyyyMMddHHmm"))
+            .arg(end.toString("yyyyMMddHHmm"));
+}
+
+void HvTxtColor::SetSection2TimeRange(const QString &settings)
+{
+    const QStringList fields = settings.split('#');
+    if (fields.size() != 3) return;
+
+    const QDateTime parsedStart = QDateTime::fromString(fields.at(1), "yyyyMMddHHmm");
+    const QDateTime parsedEnd = QDateTime::fromString(fields.at(2), "yyyyMMddHHmm");
+    if (!parsedStart.isValid() || !parsedEnd.isValid() || parsedStart > parsedEnd)
+        return;
+
+    const bool blockedStart = section2StartUtc->blockSignals(true);
+    const bool blockedEnd = section2EndUtc->blockSignals(true);
+    const bool blockedCheck = section2RangeEnabled->blockSignals(true);
+    section2StartUtc->setDateTime(QDateTime(parsedStart.date(), parsedStart.time(), Qt::UTC));
+    section2EndUtc->setDateTime(QDateTime(parsedEnd.date(), parsedEnd.time(), Qt::UTC));
+    section2RangeEnabled->setChecked(fields.at(0) == "1");
+    section2StartUtc->setEnabled(section2RangeEnabled->isChecked());
+    section2EndUtc->setEnabled(section2RangeEnabled->isChecked());
+    section2StartUtc->blockSignals(blockedStart);
+    section2EndUtc->blockSignals(blockedEnd);
+    section2RangeEnabled->blockSignals(blockedCheck);
+    Section2TimeRangeChanged();
+}
+
+void HvTxtColor::Section2TimeRangeChanged()
+{
+    const QDateTime start(section2StartUtc->date(), section2StartUtc->time(), Qt::UTC);
+    const QDateTime end(section2EndUtc->date(), section2EndUtc->time(), Qt::UTC);
+    const bool valid = start <= end;
+    section2RangeEnabled->setToolTip(valid ? QString() :
+            tr("Start must be earlier than or equal to end. The filter is inactive until corrected."));
+    emit EmitSection2TimeRange(section2RangeEnabled->isChecked() && valid, start, end);
+}
+
 void HvTxtColor::TxTextMarkChanged(bool)
 {
     emit EmitTextMarkColors(collors[dsty],C_COLORS,cb[26]->isChecked(),cb[27]->isChecked(),cb[29]->isChecked());

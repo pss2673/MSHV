@@ -1500,6 +1500,11 @@ void HvTxW::SetMarkTextLogAll(QStringList l,int p1)
     s_list_log_mark_txt_p1 = p1;
     SetMarkTextAll(); //qDebug()<<"QsoB4======"<<l.count();
 }
+void HvTxW::SetSection2TimeRange(bool enabled,QDateTime startUtc,QDateTime endUtc)
+{
+    THvLogW->SetSection2TimeRange(enabled, startUtc, endUtc);
+}
+
 void HvTxW::SetTextMark(bool *f,QString scm)
 {
     //2.06 no used here s_txt_mark[25]<-in decodelist

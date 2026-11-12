@@ -13,6 +13,7 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QDateTime>
 #include <QCheckBox>
 #include <QFileDialog>
 #include <QMenuBar>
@@ -204,6 +205,7 @@ public:
    	void SetFont(QFont f);
    	void SetSettings(QString); 
    	QString GetSettings();		
+    void SetSection2TimeRange(bool enabled,QDateTime startUtc,QDateTime endUtc);
    	void SetMarkTextAllRuleChanged(bool *f,int mode,QString band);
    	void SetFreqGlobal(QString);
    	void Show_log();
@@ -296,6 +298,10 @@ private:
 	void RefreshCbTrmN(int);
 	void CreateNBLog(bool);
 	bool isDuplicate(QStringList l,QString s,int b);
+    bool QsoInSection2Range(int row) const;
+    bool section2RangeEnabled;
+    QDateTime section2StartUtc;
+    QDateTime section2EndUtc;
     void GetMarkTextAllFromLog_p(QString band,QString mode);
     QString ExtractAdifRecord(QString in,QString str);
     //QString GetFREQall(int,int);
